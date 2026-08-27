@@ -27,11 +27,11 @@ It asks for five things and does the rest by itself.
 ### Usage
 
 ```bash
-git clone https://github.com/m0000hamad/script-s.git
-cd script-s
-chmod +x CfAutoSSL.sh
-sudo ./CfAutoSSL.sh
+wget -O CfAutoSSL.sh https://raw.githubusercontent.com/m0000hamad/script-s/main/CfAutoSSL.sh
+sudo bash CfAutoSSL.sh
 ```
+
+Or clone the repo and run `sudo ./CfAutoSSL.sh` from it.
 
 | Prompt | Default |
 |---|---|
@@ -76,11 +76,11 @@ certificate, and writes it to the path you chose.
 ### نحوه اجرا
 
 ```bash
-git clone https://github.com/m0000hamad/script-s.git
-cd script-s
-chmod +x CfAutoSSL.sh
-sudo ./CfAutoSSL.sh
+wget -O CfAutoSSL.sh https://raw.githubusercontent.com/m0000hamad/script-s/main/CfAutoSSL.sh
+sudo bash CfAutoSSL.sh
 ```
+
+یا ریپو را clone کنید و از داخلش `sudo ./CfAutoSSL.sh` را اجرا کنید.
 
 | ورودی | پیش‌فرض |
 |---|---|
