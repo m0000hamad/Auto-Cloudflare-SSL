@@ -135,23 +135,29 @@ class Broker(ABC):
 | جدول | نکات کلیدی |
 |---|---|
 | `exchanges` | `id`, `code` (`coinex`/`lbank`), `enabled` |
-| `symbols` | نماد **نرمال‌شده** (`BTC/USDT`) + `raw_symbol` هر صرافی + `price_precision`, `amount_precision`, `min_notional` |
+| `exchange_credentials` | `exchange_id`, `label`, `api_key_enc`, `api_secret_enc` (هر دو AES-GCM با master key)، `permissions`, `is_active`. **هرگز plaintext** |
+| `symbols` | نماد **نرمال‌شده** (`BTC/USDT`) + `raw_symbol` هر صرافی + `market_type` (`spot`/`futures`) + `price_precision`, `amount_precision`, `min_notional`, `contract_size` (nullable) |
 | `candles` | `(exchange_id, symbol_id, timeframe, open_time)` کلید یکتا. قیمت‌ها `NUMERIC`، نه `float8` |
-| `strategies` | تعریف استراتژی + `params` به‌صورت JSONB |
-| `strategy_runs` | هر بار اجرای زنده: مود، وضعیت، زمان شروع/پایان |
+| `strategies` | تعریف استراتژی + `params` به‌صورت JSONB + `code_version` |
+| `strategy_runs` | هر بار اجرای زنده: مود، مقصد اجرا (paper/live)، وضعیت، زمان شروع/پایان |
 | `signals` | خروجی استراتژی، مستقل از اینکه اجرا شده یا نه. `status`: `pending`/`approved`/`rejected`/`executed`/`expired` |
-| `orders` | `client_order_id` یکتا (idempotency)، `exchange_order_id`, `status`, `filled_amount`, `avg_price` |
-| `positions` | ماشین حالت: `opening`→`open`→`closing`→`closed` |
-| `backtests` | پیکربندی + متریک‌های خلاصه |
+| `orders` | `client_order_id` یکتا (idempotency)، `exchange_order_id`, `status`, `filled_amount`, `avg_price`, `reduce_only` |
+| `positions` | ماشین حالت: `opening`→`open`→`closing`→`closed`. ستون‌های futures-ready **nullable**: `leverage`, `margin_mode`, `liquidation_price`, `funding_paid` |
+| `backtests` | پیکربندی + متریک‌های خلاصه + نرخ کارمزد/لغزش فرض‌شده + `code_version` |
 | `backtest_trades` | تک‌تک معاملات شبیه‌سازی‌شده |
 | `bot_users` | `platform` (`telegram`/`bale`), `platform_user_id`, `role`, `is_approved` |
-| `audit_log` | **هر** عمل حساس: تغییر مود، رفتن به live، ارسال سفارش، لغو. با `actor` و `source` |
+| `audit_log` | **هر** عمل حساس: تغییر مود، رفتن به live، ارسال سفارش، لغو، چرخش کلید. با `actor` و `source` |
 
 **قوانین:**
 - همهٔ زمان‌ها `TIMESTAMPTZ` و در UTC. تبدیل به وقت محلی فقط در لایهٔ نمایش.
 - همهٔ اعداد پولی `NUMERIC(38, 18)`.
 - `candles` روی `open_time` پارتیشن یا حداقل ایندکس BRIN بگیرد؛ حجمش زیاد می‌شود.
 - migration با `alembic`. هیچ تغییر اسکیمای دستی روی Neon بدون migration.
+- **ستون‌های futures از روز اول ساخته می‌شوند ولی خالی می‌مانند** (تصمیم D9).
+  فاز ۱ تا ۸ فقط `market_type='spot'` می‌نویسد. این کار الان رایگان است و
+  بعداً یک migration دردناک روی جدول پوزیشن‌های زنده را حذف می‌کند.
+- هیچ نماد یا تایم‌فریمی در کد hardcode نشود؛ همه از `symbols` و پیکربندی
+  watchlist می‌آیند (D12).
 
 ---
 
