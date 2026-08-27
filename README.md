@@ -27,11 +27,11 @@ It asks for five things and does the rest by itself.
 ### Usage
 
 ```bash
-wget -O CfAutoSSL.sh https://raw.githubusercontent.com/m0000hamad/script-s/main/CfAutoSSL.sh
+wget -O CfAutoSSL.sh https://github.com/m0000hamad/script-s/releases/latest/download/CfAutoSSL.sh
 sudo bash CfAutoSSL.sh
 ```
 
-Or clone the repo and run `sudo ./CfAutoSSL.sh` from it.
+This always pulls the newest published version — see [Releases](https://github.com/m0000hamad/script-s/releases).
 
 | Prompt | Default |
 |---|---|
@@ -76,11 +76,11 @@ certificate, and writes it to the path you chose.
 ### نحوه اجرا
 
 ```bash
-wget -O CfAutoSSL.sh https://raw.githubusercontent.com/m0000hamad/script-s/main/CfAutoSSL.sh
+wget -O CfAutoSSL.sh https://github.com/m0000hamad/script-s/releases/latest/download/CfAutoSSL.sh
 sudo bash CfAutoSSL.sh
 ```
 
-یا ریپو را clone کنید و از داخلش `sudo ./CfAutoSSL.sh` را اجرا کنید.
+این دستور همیشه آخرین نسخه منتشرشده را می‌گیرد — [فهرست نسخه‌ها](https://github.com/m0000hamad/script-s/releases).
 
 | ورودی | پیش‌فرض |
 |---|---|
