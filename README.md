@@ -53,6 +53,9 @@ certificate, and writes it to the path you chose.
 
 ### Notes
 
+- If IPv6 is enabled but not actually working, Certbot stalls reaching Let's Encrypt. The script
+  turns IPv6 off for the duration of the request and back on afterwards — runtime only, nothing
+  permanent — and skips this entirely if your SSH session itself is over IPv6.
 - The private key is written as a plain file — check the destination directory's permissions.
 - To renew later, re-run the script or use `certbot renew`.
 
@@ -102,6 +105,9 @@ sudo bash CfAutoSSL.sh
 
 ### نکات
 
+- اگر IPv6 فعال باشد ولی واقعاً کار نکند، Certbot در ارتباط با Let's Encrypt گیر می‌کند. اسکریپت
+  IPv6 را فقط در طول گرفتن گواهی خاموش و بعد دوباره روشن می‌کند — تغییر موقتی است و چیزی دائمی
+  عوض نمی‌شود — و اگر خود اتصال SSH شما روی IPv6 باشد، اصلاً دست به آن نمی‌زند.
 - کلید خصوصی به صورت فایل ساده ذخیره می‌شود — سطح دسترسی مسیر مقصد را چک کنید.
 - برای تمدید، دوباره اسکریپت را اجرا کنید یا از `certbot renew` استفاده کنید.
 

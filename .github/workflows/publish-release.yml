@@ -1,0 +1,38 @@
+name: Publish release
+
+# Publishes a version: creates the tag, creates the release using
+# RELEASE_NOTES.md as its body, and attaches CfAutoSSL.sh under exactly the
+# name the README's install URL resolves to.
+#
+# Run it from the Actions tab and enter the version, e.g. v2.0.0.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to publish, e.g. v2.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the release with the script attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists - refreshing its asset."
+            gh release upload "$VERSION" CfAutoSSL.sh --clobber
+          else
+            gh release create "$VERSION" CfAutoSSL.sh \
+              --title "CfAutoSSL $VERSION" \
+              --notes-file RELEASE_NOTES.md
+          fi
