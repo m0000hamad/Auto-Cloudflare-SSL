@@ -45,6 +45,19 @@ This always pulls the newest published version — see [Releases](https://github
 Press Enter on the last three to accept the defaults. The script installs Certbot, requests the
 certificate, and writes it to the path you chose.
 
+Your answers are saved, so the next run offers to reuse them:
+
+```
+Found settings from a previous run:
+  Domain:     example.com
+  Cloudflare: you@example.com
+  Saves to:   /root/cert.crt and /root/private.key
+
+Reuse these settings? [Y/n]:
+```
+
+Press Enter to repeat the last run, or `n` to enter new details.
+
 ### Requirements
 
 - Ubuntu/Debian with root access and outbound internet.
@@ -96,6 +109,19 @@ sudo bash CfAutoSSL.sh
 
 برای سه مورد آخر کافی است Enter بزنید تا مقدار پیش‌فرض اعمال شود. اسکریپت خودش Certbot را نصب
 می‌کند، گواهی را می‌گیرد و در مسیری که انتخاب کرده‌اید ذخیره می‌کند.
+
+پاسخ‌های شما ذخیره می‌شود و اجرای بعدی پیشنهاد می‌دهد از همان‌ها استفاده کند:
+
+```
+Found settings from a previous run:
+  Domain:     example.com
+  Cloudflare: you@example.com
+  Saves to:   /root/cert.crt and /root/private.key
+
+Reuse these settings? [Y/n]:
+```
+
+برای تکرار اجرای قبلی Enter بزنید، یا `n` بزنید تا مشخصات جدید وارد کنید.
 
 ### پیش‌نیازها
 

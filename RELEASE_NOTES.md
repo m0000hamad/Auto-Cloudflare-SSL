@@ -1,3 +1,15 @@
+## What's new in v2.1.0
+
+- **Saved settings.** Your answers are remembered, and the next run offers to reuse them
+  instead of retyping everything — press Enter to repeat the last run, or `n` for new details.
+  The Cloudflare API token is not duplicated into the settings file; it stays in
+  `cloudflare.ini`, which is the file Certbot already reads.
+- The settings file is parsed as plain data rather than sourced, so a damaged or tampered
+  file cannot execute anything. Reuse is only offered when both the settings and the
+  credentials file are present and complete.
+
+Previously, in v2.0.0: the IPv6 workaround below, and the move away from deploying over SSH.
+
 ## What this solves
 
 You need an SSL certificate for a server whose domain or subdomain doesn't point at its
@@ -48,6 +60,18 @@ It now issues the certificate and saves it locally. To renew, re-run the script 
 Tested on Ubuntu.
 
 ---
+
+## تغییرات نسخه ۲.۱.۰
+
+- **ذخیره مشخصات.** پاسخ‌هایی که وارد می‌کنید ذخیره می‌شود و اجرای بعدی پیشنهاد می‌دهد از
+  همان‌ها استفاده کند تا دوباره همه‌چیز را تایپ نکنید — برای تکرار اجرای قبلی Enter بزنید و
+  برای وارد کردن مشخصات جدید `n`. توکن API کلودفلر در فایل تنظیمات تکرار نمی‌شود و همان‌جایی
+  می‌ماند که Certbot از قبل می‌خواند، یعنی `cloudflare.ini`.
+- فایل تنظیمات به‌جای source شدن، به‌صورت داده ساده خوانده می‌شود تا اگر خراب یا دستکاری شد،
+  نتواند چیزی اجرا کند. پیشنهاد استفاده مجدد فقط وقتی داده می‌شود که هم فایل تنظیمات و هم
+  فایل اعتبارنامه موجود و کامل باشند.
+
+پیش از این در نسخه ۲.۰.۰: رفتار با IPv6 که پایین‌تر توضیح داده شده، و حذف انتقال از طریق SSH.
 
 ## این نسخه چه مشکلی را حل می‌کند
 

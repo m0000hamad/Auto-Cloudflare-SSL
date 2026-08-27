@@ -10,6 +10,9 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+CF_INI_PATH="/root/.secrets/certbot/cloudflare.ini"
+CONFIG_PATH="/root/.config/cfautossl/last.conf"
+
 # --- IPv6 workaround -------------------------------------------------------
 # A host that advertises IPv6 without working IPv6 connectivity makes Certbot
 # stall or fail on its way to the Let's Encrypt API. Turn IPv6 off for the
@@ -51,32 +54,95 @@ restore_ipv6() {
 trap restore_ipv6 EXIT
 # ---------------------------------------------------------------------------
 
-# Get domain name and Cloudflare credentials from user input
-read -p "Enter the domain name: " DOMAIN
-read -p "Enter your Cloudflare email: " CF_EMAIL
-read -p "Enter your Cloudflare API token: " CF_API_TOKEN
+# --- Saved settings --------------------------------------------------------
+# Remembers the last run so a repeat issue/renew needs no retyping. The
+# Cloudflare API token is deliberately not duplicated here - it already lives
+# in cloudflare.ini, which is what Certbot reads.
 
-# Ask user for directory to store the certificate files
-read -p "Enter the directory to store the certificate files (default: /root): " DEST_DIR
-DEST_DIR=${DEST_DIR:-/root}
+load_config() {
+    # Parsed rather than sourced, so a damaged file cannot execute anything.
+    while IFS='=' read -r key value; do
+        case "$key" in
+            DOMAIN)    SAVED_DOMAIN="$value" ;;
+            CF_EMAIL)  SAVED_CF_EMAIL="$value" ;;
+            DEST_DIR)  SAVED_DEST_DIR="$value" ;;
+            CERT_FILE) SAVED_CERT_FILE="$value" ;;
+            KEY_FILE)  SAVED_KEY_FILE="$value" ;;
+        esac
+    done < "$CONFIG_PATH"
 
-# Get file names for storing the certificate and private key
-read -p "Enter the certificate file name (default: cert.crt): " CERT_FILE
-CERT_FILE=${CERT_FILE:-cert.crt}
-read -p "Enter the private key file name (default: private.key): " KEY_FILE
-KEY_FILE=${KEY_FILE:-private.key}
+    [[ -n "$SAVED_DOMAIN" && -n "$SAVED_CF_EMAIL" && -n "$SAVED_DEST_DIR" \
+       && -n "$SAVED_CERT_FILE" && -n "$SAVED_KEY_FILE" ]]
+}
+
+save_config() {
+    mkdir -p "$(dirname "$CONFIG_PATH")"
+    chmod 700 "$(dirname "$CONFIG_PATH")"
+    {
+        echo "DOMAIN=$DOMAIN"
+        echo "CF_EMAIL=$CF_EMAIL"
+        echo "DEST_DIR=$DEST_DIR"
+        echo "CERT_FILE=$CERT_FILE"
+        echo "KEY_FILE=$KEY_FILE"
+    } > "$CONFIG_PATH"
+    chmod 600 "$CONFIG_PATH"
+}
+# ---------------------------------------------------------------------------
+
+# Offer to reuse the previous run. Both files must be present: the config
+# holds the settings, cloudflare.ini holds the credentials.
+USE_SAVED=0
+if [[ -f "$CONFIG_PATH" && -f "$CF_INI_PATH" ]] && load_config; then
+    echo "Found settings from a previous run:"
+    echo "  Domain:     $SAVED_DOMAIN"
+    echo "  Cloudflare: $SAVED_CF_EMAIL"
+    echo "  Saves to:   $SAVED_DEST_DIR/$SAVED_CERT_FILE and $SAVED_DEST_DIR/$SAVED_KEY_FILE"
+    echo
+    read -p "Reuse these settings? [Y/n]: " REUSE_ANSWER
+    case "${REUSE_ANSWER,,}" in
+        n|no) USE_SAVED=0 ;;
+        *)    USE_SAVED=1 ;;
+    esac
+    echo
+fi
+
+if [[ $USE_SAVED -eq 1 ]]; then
+    DOMAIN="$SAVED_DOMAIN"
+    CF_EMAIL="$SAVED_CF_EMAIL"
+    DEST_DIR="$SAVED_DEST_DIR"
+    CERT_FILE="$SAVED_CERT_FILE"
+    KEY_FILE="$SAVED_KEY_FILE"
+    echo "Using the saved settings for $DOMAIN."
+else
+    # Get domain name and Cloudflare credentials from user input
+    read -p "Enter the domain name: " DOMAIN
+    read -p "Enter your Cloudflare email: " CF_EMAIL
+    read -p "Enter your Cloudflare API token: " CF_API_TOKEN
+
+    # Ask user for directory to store the certificate files
+    read -p "Enter the directory to store the certificate files (default: /root): " DEST_DIR
+    DEST_DIR=${DEST_DIR:-/root}
+
+    # Get file names for storing the certificate and private key
+    read -p "Enter the certificate file name (default: cert.crt): " CERT_FILE
+    CERT_FILE=${CERT_FILE:-cert.crt}
+    read -p "Enter the private key file name (default: private.key): " KEY_FILE
+    KEY_FILE=${KEY_FILE:-private.key}
+fi
 
 # Update the system and install Certbot with the Cloudflare DNS plugin
 echo "Updating the system and installing Certbot..."
 apt-get update
 apt-get install -y certbot python3-certbot-dns-cloudflare
 
-# Create Cloudflare configuration file
-CF_INI_PATH="/root/.secrets/certbot/cloudflare.ini"
-mkdir -p "$(dirname "$CF_INI_PATH")"
-echo "dns_cloudflare_email = $CF_EMAIL" > "$CF_INI_PATH"
-echo "dns_cloudflare_api_key = $CF_API_TOKEN" >> "$CF_INI_PATH"
-chmod 600 "$CF_INI_PATH"
+# Create Cloudflare configuration file. When reusing saved settings the
+# existing one already holds the credentials, so it is left untouched.
+if [[ $USE_SAVED -ne 1 ]]; then
+    mkdir -p "$(dirname "$CF_INI_PATH")"
+    echo "dns_cloudflare_email = $CF_EMAIL" > "$CF_INI_PATH"
+    echo "dns_cloudflare_api_key = $CF_API_TOKEN" >> "$CF_INI_PATH"
+    chmod 600 "$CF_INI_PATH"
+fi
 
 disable_ipv6
 
@@ -95,6 +161,9 @@ CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
 mkdir -p "$DEST_DIR"
 cp "$CERT_DIR/fullchain.pem" "$DEST_DIR/$CERT_FILE"
 cp "$CERT_DIR/privkey.pem" "$DEST_DIR/$KEY_FILE"
+
+# Remember this run so the next one can offer to repeat it.
+save_config
 
 echo "Certificate saved to $DEST_DIR/$CERT_FILE"
 echo "Private key saved to $DEST_DIR/$KEY_FILE"
