@@ -1,0 +1,165 @@
+# DigiTrade — لایهٔ صرافی: CoinEx و LBank
+
+> ⚠️ **قانون تأیید:** هرچه در این فایل با 🟡 علامت خورده، فرض است نه واقعیت
+> تأییدشده. قبل از اتکا به آن، با درخواست واقعی تستش کن، بعد علامت را به ✅
+> تغییر بده و مقدار واقعی را بنویس. اگر خلافش درآمد، همین‌جا اصلاحش کن.
+> این فایل باید در طول پروژه به مرجع واقعی تبدیل شود، نه حدس.
+
+---
+
+## اصول مشترک
+
+### نرمال‌سازی نماد
+
+هر صرافی نماد را جور دیگری می‌نویسد. **داخل سیستم فقط یک فرمت داریم:**
+`BASE/QUOTE` با حروف بزرگ، مثل `BTC/USDT`.
+
+| داخلی | CoinEx | LBank |
+|---|---|---|
+| `BTC/USDT` | `BTCUSDT` 🟡 | `btc_usdt` 🟡 |
+
+نگاشت در جدول `symbols` ذخیره می‌شود (`raw_symbol` per exchange) و در
+`marketdata/normalizer.py` اعمال می‌شود. **هیچ‌جای دیگری از کد نباید نماد خام
+صرافی را ببیند.**
+
+### دقت اعداد (precision)
+
+هر نماد `price_precision`، `amount_precision` و `min_notional` دارد. قبل از
+ارسال هر سفارش، قیمت و حجم باید به این دقت گرد شوند — **همیشه به سمت پایین
+برای حجم** (تا از موجودی بیشتر نشود). صرافی سفارشی با دقت اشتباه را رد می‌کند.
+
+این مقادیر یک بار در استارتاپ از `fetch_symbols()` گرفته و کش می‌شوند.
+
+### Rate limit
+
+هر کلاینت باید یک `RateLimiter` داخلی داشته باشد (token bucket).
+منتظر ماندن بهتر از خوردن ban است. سقف واقعی هر صرافی:
+
+- CoinEx: 🟡 نامشخص — تست شود
+- LBank: 🟡 نامشخص — تست شود
+
+هنگام دریافت خطای rate limit، backoff نمایی با jitter. هرگز retry فوری.
+
+### چه چیزی retry شود، چه چیزی نه
+
+| نوع | retry؟ |
+|---|---|
+| تایم‌اوت شبکه روی درخواست **خواندنی** | ✅ بله، با backoff |
+| تایم‌اوت شبکه روی **ارسال سفارش** | ⚠️ فقط با همان `client_order_id`، و اول با `fetch_order` وضعیت را چک کن |
+| خطای اعتبارسنجی (دقت، موجودی ناکافی) | ❌ هرگز — بالا بفرست |
+| خطای امضا/احراز هویت | ❌ هرگز — لاگ و توقف |
+| rate limit | ✅ بله، بعد از انتظار |
+
+---
+
+## CoinEx
+
+- REST base: `https://api.coinex.com/v2/` 🟡
+- WebSocket (spot): `wss://socket.coinex.com/v2/spot` 🟡
+- داکیومنت: `https://docs.coinex.com/`
+
+### احراز هویت 🟡
+
+هدرها:
+```
+X-COINEX-KEY:       <access_id>
+X-COINEX-SIGN:      <signature>
+X-COINEX-TIMESTAMP: <unix_ms>
+```
+
+امضا: `HMAC-SHA256` روی رشتهٔ
+`{METHOD}{request_path_with_query}{body}{timestamp}` با کلید `secret_key`،
+خروجی hex با حروف کوچک.
+
+> ⚠️ ترتیب دقیق اجزا و اینکه body خالی چطور نمایش داده می‌شود، **باید تست
+> شود**. اولین کاری که در فاز ۱ می‌کنی: یک endpoint خصوصی سبک
+> (مثل موجودی) را صدا بزن و امضا را درست کن، بعد سراغ بقیه برو.
+
+### WebSocket 🟡
+
+- پیام‌ها احتمالاً فشرده (gzip/deflate) هستند — هنگام اتصال چک کن.
+- الگوی subscribe به‌صورت JSON-RPC با `method`، `params`، `id`.
+- سرور ping می‌فرستد؛ اگر pong نفرستیم قطع می‌کند. هندلر ping/pong لازم است.
+- بعد از reconnect، **همهٔ** subscriptionها باید دوباره ارسال شوند.
+
+---
+
+## LBank (البانک)
+
+- REST base: `https://api.lbkex.com/v2/` 🟡
+- WebSocket: `wss://www.lbkex.net/ws/V2/` 🟡
+- داکیومنت: `https://www.lbank.com/docs/`
+
+### احراز هویت 🟡
+
+LBank پارامترها را در body/query می‌فرستد، نه هدر:
+
+```
+api_key      = <کلید>
+timestamp    = <unix_ms>
+signature_method = HmacSHA256
+echostr      = <رشتهٔ تصادفی، طول ۳۰ تا ۴۰ کاراکتر>
+sign         = <امضا>
+```
+
+مراحل امضا:
+1. همهٔ پارامترها (به‌جز `sign`) را بر اساس نام کلید **الفبایی** مرتب کن
+2. به شکل `k1=v1&k2=v2&...` به هم بچسبان
+3. `MD5` بگیر و **با حروف بزرگ** hex کن
+4. روی آن رشته `HMAC-SHA256` با `secret_key` بزن → `sign`
+
+> ⚠️ مرحلهٔ MD5 قبل از HMAC غیرمعمول است و راحت اشتباه می‌شود. حتماً تست کن.
+> `echostr` هم باید در همان طول مجاز باشد وگرنه رد می‌شود.
+
+### WebSocket 🟡
+
+- subscribe با `{"action":"subscribe","subscribe":"kbar",...}`
+- سرور `ping` با یک id می‌فرستد؛ باید `{"action":"pong","pong":<id>}` جواب داد
+  — اگر ندهیم قطع می‌شود.
+- کانال‌های خصوصی به `subscribeKey` جداگانه نیاز دارند که با REST گرفته
+  و باید **دوره‌ای تمدید** شود. 🟡 این را حتماً بررسی کن، وگرنه بعد از
+  مدتی جریان سفارش‌ها بی‌صدا قطع می‌شود.
+
+---
+
+## قرارداد ارسال سفارش {#order-placement}
+
+```python
+@dataclass(frozen=True)
+class OrderRequest:
+    exchange: str
+    symbol: Symbol            # نرمال‌شده
+    side: Side                # BUY | SELL
+    type: OrderType           # MARKET | LIMIT | STOP_LIMIT
+    amount: Decimal           # به واحد base
+    price: Decimal | None     # برای LIMIT اجباری
+    stop_price: Decimal | None
+    client_order_id: str      # UUID تولیدی خودمان — idempotency
+    reduce_only: bool = False
+    time_in_force: TIF = TIF.GTC
+```
+
+پیش از ارسال، `OrderRouter` این‌ها را انجام می‌دهد:
+1. گرد کردن `price`/`amount` به دقت نماد
+2. بررسی `min_notional`
+3. بررسی موجودی کافی
+4. بررسی `RiskManager`
+5. ثبت در `orders` با وضعیت `pending` **قبل از** ارسال به شبکه
+6. ارسال؛ در صورت تایم‌اوت → `fetch_order(client_order_id)` برای تشخیص
+
+مرحلهٔ ۵ حیاتی است: اگر اول ارسال کنیم و بعد ثبت، یک کرش وسط کار یعنی
+سفارشی که در صرافی هست ولی ما خبر نداریم.
+
+---
+
+## چک‌لیست افزودن صرافی جدید
+
+اگر بعداً صرافی سومی اضافه شد:
+
+- [ ] `exchanges/<name>/client.py` که `ExchangeClient` را پیاده می‌کند
+- [ ] نگاشت نماد در `normalizer`
+- [ ] نگاشت خطاها به سلسله‌مراتب خطای داخلی
+- [ ] `RateLimiter` با مقادیر واقعی آن صرافی
+- [ ] تست‌های `respx` با پاسخ‌های ضبط‌شدهٔ واقعی
+- [ ] رکورد در جدول `exchanges`
+- [ ] یک بخش در همین فایل با همان ساختار بالا
