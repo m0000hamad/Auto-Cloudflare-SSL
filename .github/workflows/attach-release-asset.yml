@@ -1,0 +1,26 @@
+name: Attach release asset
+
+# The README's install command points at
+# /releases/latest/download/CfAutoSSL.sh, so every release must carry the
+# script under exactly that name or installs break silently. This attaches
+# it automatically instead of relying on a manual upload.
+
+on:
+  release:
+    types: [published, edited]
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Upload CfAutoSSL.sh to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" CfAutoSSL.sh --clobber
