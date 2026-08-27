@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# CfAutoSSL - Cloudflare Auto SSL
+# Issues a Let's Encrypt certificate via the Cloudflare DNS-01 challenge
+# and saves it locally. No SSH, no remote server, no password.
 
 # Check if the script is run as root
 if [[ $EUID -ne 0 ]]; then

@@ -1,10 +1,10 @@
 <div align="center">
 
-# setup_ssl.sh
+# CfAutoSSL
 
-**Fully automatic Let's Encrypt certificate issuance via the Cloudflare DNS-01 challenge**
+**Cloudflare Auto SSL — fully automatic Let's Encrypt certificate issuance via the Cloudflare DNS-01 challenge**
 <br>
-**صدور کاملاً خودکار گواهی Let's Encrypt با چالش DNS-01 کلودفلر**
+**کلودفلر اتو SSL — صدور کاملاً خودکار گواهی Let's Encrypt با چالش DNS-01 کلودفلر**
 
 [![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 ![Shell](https://img.shields.io/badge/shell-bash-1f425f.svg)
@@ -15,7 +15,7 @@
 
 ## English
 
-`setup_ssl.sh` is a single Bash script that issues a publicly-trusted TLS certificate for a domain
+`CfAutoSSL.sh` is a single Bash script that issues a publicly-trusted TLS certificate for a domain
 using Certbot's Cloudflare **DNS-01** challenge — which needs no open port 80/443 and no inbound
 connection to your server at all — and saves the resulting certificate and private key wherever you
 choose. It only asks for what it actually needs: your Cloudflare credentials, the domain, and where
@@ -46,8 +46,8 @@ That's the whole script — no SSH, no remote server, no password of any kind, a
 ```bash
 git clone https://github.com/m0000hamad/script-s.git
 cd script-s
-chmod +x setup_ssl.sh
-sudo ./setup_ssl.sh
+chmod +x CfAutoSSL.sh
+sudo ./CfAutoSSL.sh
 ```
 
 You will be prompted for each value in turn. Leaving the destination directory or file-name prompts
@@ -89,7 +89,7 @@ Released under the **Mozilla Public License 2.0** — see [LICENSE](LICENSE).
 
 ## فارسی
 
-`setup_ssl.sh` یک اسکریپت Bash تک‌فایلی است که با استفاده از چالش **DNS-01** سرویس Certbot برای
+`CfAutoSSL.sh` یک اسکریپت Bash تک‌فایلی است که با استفاده از چالش **DNS-01** سرویس Certbot برای
 کلودفلر — که اصلاً نیازی به باز بودن پورت ۸۰ یا ۴۴۳ و هیچ اتصال ورودی به سرور شما ندارد — یک گواهی
 TLS معتبر و مورد اعتماد عمومی برای دامنه شما صادر می‌کند و گواهی و کلید خصوصی حاصل را هرجا که بخواهید
 ذخیره می‌کند. این اسکریپت فقط همان چیزی را می‌پرسد که واقعاً لازم دارد: اطلاعات کلودفلر، دامنه، و
@@ -121,8 +121,8 @@ TLS معتبر و مورد اعتماد عمومی برای دامنه شما ص
 ```bash
 git clone https://github.com/m0000hamad/script-s.git
 cd script-s
-chmod +x setup_ssl.sh
-sudo ./setup_ssl.sh
+chmod +x CfAutoSSL.sh
+sudo ./CfAutoSSL.sh
 ```
 
 هر مقدار به‌ترتیب از شما پرسیده می‌شود. اگر مسیر مقصد یا نام فایل‌ها خالی گذاشته شوند، همان مقدار
