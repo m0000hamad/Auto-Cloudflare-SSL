@@ -70,12 +70,25 @@ class ExchangeClient(ABC):
     async def watch_candles(self, symbol: Symbol, tf: Timeframe) -> AsyncIterator[Candle]: ...
     async def watch_ticker(self, symbol: Symbol) -> AsyncIterator[Ticker]: ...
 
+    # --- futures market data ---
+    async def fetch_mark_price(self, symbol: Symbol) -> Decimal: ...
+    async def fetch_funding_rate(self, symbol: Symbol) -> FundingRate: ...
+    async def fetch_funding_history(self, symbol: Symbol,
+                                    since: datetime) -> list[FundingRate]: ...
+    async def watch_mark_price(self, symbol: Symbol) -> AsyncIterator[Decimal]: ...
+
     # --- trading (private) ---
     async def fetch_balance(self) -> Balance: ...
     async def place_order(self, req: OrderRequest) -> Order: ...
     async def cancel_order(self, symbol: Symbol, order_id: str) -> Order: ...
     async def fetch_order(self, symbol: Symbol, order_id: str) -> Order: ...
     async def fetch_open_orders(self, symbol: Symbol | None) -> list[Order]: ...
+
+    # --- futures positions ---
+    async def fetch_positions(self) -> list[ExchangePosition]: ...
+    async def watch_positions(self) -> AsyncIterator[ExchangePosition]: ...
+    async def set_leverage(self, symbol: Symbol, leverage: int) -> None: ...
+    async def set_margin_mode(self, symbol: Symbol, mode: MarginMode) -> None: ...
 ```
 
 نکات:
@@ -136,13 +149,15 @@ class Broker(ABC):
 |---|---|
 | `exchanges` | `id`, `code` (`coinex`/`lbank`), `enabled` |
 | `exchange_credentials` | `exchange_id`, `label`, `api_key_enc`, `api_secret_enc` (هر دو AES-GCM با master key)، `permissions`, `is_active`. **هرگز plaintext** |
-| `symbols` | نماد **نرمال‌شده** (`BTC/USDT`) + `raw_symbol` هر صرافی + `market_type` (`spot`/`futures`) + `price_precision`, `amount_precision`, `min_notional`, `contract_size` (nullable) |
+| `symbols` | نماد **نرمال‌شده** (`BTC/USDT:USDT`) + `raw_symbol` هر صرافی + `market_type` (`futures`/`spot`) + `price_precision`, `amount_precision`, `min_notional`, **`contract_size`**, **`max_leverage`**, **`maint_margin_tiers`** (JSONB) |
 | `candles` | `(exchange_id, symbol_id, timeframe, open_time)` کلید یکتا. قیمت‌ها `NUMERIC`، نه `float8` |
+| **`funding_rates`** | `(exchange_id, symbol_id, funding_time)` یکتا + `rate`, `mark_price`. **بدون این جدول بک‌تست فیوچرز دروغ می‌گوید** |
 | `strategies` | تعریف استراتژی + `params` به‌صورت JSONB + `code_version` |
-| `strategy_runs` | هر بار اجرای زنده: مود، مقصد اجرا (paper/live)، وضعیت، زمان شروع/پایان |
+| `strategy_runs` | هر بار اجرای زنده: مود، مقصد اجرا (paper/live)، **`leverage`**, **`margin_mode`**, وضعیت، زمان شروع/پایان |
 | `signals` | خروجی استراتژی، مستقل از اینکه اجرا شده یا نه. `status`: `pending`/`approved`/`rejected`/`executed`/`expired` |
-| `orders` | `client_order_id` یکتا (idempotency)، `exchange_order_id`, `status`, `filled_amount`, `avg_price`, `reduce_only` |
-| `positions` | ماشین حالت: `opening`→`open`→`closing`→`closed`. ستون‌های futures-ready **nullable**: `leverage`, `margin_mode`, `liquidation_price`, `funding_paid` |
+| `orders` | `client_order_id` یکتا (idempotency)، `exchange_order_id`, `status`, `filled_amount`, `avg_price`, `reduce_only`, `position_side` |
+| `positions` | ماشین حالت (پایین). فیلدهای **اجباری** فیوچرز: `side`, `leverage`, `margin_mode`, `entry_price`, `mark_price`, `liquidation_price`, `initial_margin`, `maint_margin`, `unrealized_pnl`, `realized_pnl`, `funding_paid`, `contracts` |
+| **`position_events`** | تاریخچهٔ تغییرات هر پوزیشن: افزایش/کاهش، پرداخت funding، تغییر اهرم، هشدار مارجین، لیکوئیدیشن. PnL نهایی از روی این ساخته می‌شود، نه از یک ستون قابل بازنویسی |
 | `backtests` | پیکربندی + متریک‌های خلاصه + نرخ کارمزد/لغزش فرض‌شده + `code_version` |
 | `backtest_trades` | تک‌تک معاملات شبیه‌سازی‌شده |
 | `bot_users` | `platform` (`telegram`/`bale`), `platform_user_id`, `role`, `is_approved` |
@@ -153,11 +168,16 @@ class Broker(ABC):
 - همهٔ اعداد پولی `NUMERIC(38, 18)`.
 - `candles` روی `open_time` پارتیشن یا حداقل ایندکس BRIN بگیرد؛ حجمش زیاد می‌شود.
 - migration با `alembic`. هیچ تغییر اسکیمای دستی روی Neon بدون migration.
-- **ستون‌های futures از روز اول ساخته می‌شوند ولی خالی می‌مانند** (تصمیم D9).
-  فاز ۱ تا ۸ فقط `market_type='spot'` می‌نویسد. این کار الان رایگان است و
-  بعداً یک migration دردناک روی جدول پوزیشن‌های زنده را حذف می‌کند.
+- **بازار اصلی `futures` است** (D9). فیلدهای اهرم/مارجین/لیکوئید اجباری‌اند،
+  نه اختیاری. اسپات در فاز ۹ روی همین انتزاع می‌آید.
 - هیچ نماد یا تایم‌فریمی در کد hardcode نشود؛ همه از `symbols` و پیکربندی
   watchlist می‌آیند (D12).
+- **`mark_price` و `last_price` دو ستون جدا هستند و هرگز جای هم استفاده
+  نمی‌شوند** (D19). لیکوئیدیشن و PnL شناور با mark، سیگنال با last.
+- حجم پوزیشن در `contracts` نگه داشته می‌شود و تبدیل به واحد base فقط از
+  طریق `symbols.contract_size`. بعضی صرافی‌ها قرارداد را در واحد ثابت
+  (مثلاً ۱ قرارداد = ۰.۰۰۱ BTC) تعریف می‌کنند — این تبدیل نباید در کد
+  استراتژی پخش شود.
 
 ---
 
