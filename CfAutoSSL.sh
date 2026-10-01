@@ -138,9 +138,24 @@ apt-get install -y certbot python3-certbot-dns-cloudflare
 # Create Cloudflare configuration file. When reusing saved settings the
 # existing one already holds the credentials, so it is left untouched.
 if [[ $USE_SAVED -ne 1 ]]; then
+    # Drop stray whitespace/quotes from pasting - they cause Cloudflare error 6003.
+    CF_API_TOKEN="${CF_API_TOKEN//[[:space:]\"\']/}"
+    CF_EMAIL="${CF_EMAIL//[[:space:]]/}"
+
     mkdir -p "$(dirname "$CF_INI_PATH")"
-    echo "dns_cloudflare_email = $CF_EMAIL" > "$CF_INI_PATH"
-    echo "dns_cloudflare_api_key = $CF_API_TOKEN" >> "$CF_INI_PATH"
+    # A Global API Key is 37 hex characters and needs the account email.
+    # Anything else is a scoped API token, which must NOT be sent with the
+    # email/api_key header pair - Cloudflare rejects that with error 6003.
+    if [[ "$CF_API_TOKEN" =~ ^[0-9a-f]{37}$ ]]; then
+        echo "Detected a Global API Key."
+        {
+            echo "dns_cloudflare_email = $CF_EMAIL"
+            echo "dns_cloudflare_api_key = $CF_API_TOKEN"
+        } > "$CF_INI_PATH"
+    else
+        echo "Detected an API token."
+        echo "dns_cloudflare_api_token = $CF_API_TOKEN" > "$CF_INI_PATH"
+    fi
     chmod 600 "$CF_INI_PATH"
 fi
 
